@@ -1,0 +1,90 @@
+name: Build Toolchains with crosstool-ng
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+    contents: write
+
+env:
+  CT_NG_REF: 0145966e8e4f73843a72733e59263ce3f8c69f2e
+  PLATFORM: "linux-amd64"
+
+jobs:
+  build-toolchains:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - toolchain: avr
+          - toolchain: lm32-unknown-elf
+          - toolchain: loongarch64-unknown-elf
+          - toolchain: m68k-unknown-elf
+#          - toolchain: msp430-unknown-elf # Broken: https://github.com/picolibc/picolibc/issues/900#issuecomment-2566442990
+          - toolchain: or1k-unknown-elf
+#          - toolchain: sh-unknown-elf # Broken: https://github.com/picolibc/picolibc/issues/900#issuecomment-2564759852
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "prereq Linux"
+        run: |
+          sudo apt-get install -y gperf help2man libtool-bin
+
+      - uses: actions/checkout@v4
+        with:
+          repository: crosstool-ng/crosstool-ng
+          ref: ${{ env.CT_NG_REF }}
+          path: crosstool-ng
+
+      - name: "Apply patches"
+        run: |
+          cd crosstool-ng
+          git apply ${{ github.workspace }}/patches/crosstool-ng/*.patch
+
+      - name: Build crosstool-ng
+        run: |
+          cd crosstool-ng
+          ./bootstrap
+          ./configure --prefix="${{ github.workspace }}/.local/"
+          make
+          make install
+          echo "${{ github.workspace }}/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build toolchain
+        run: |
+          mkdir -p src
+          export CONFIG_=CT_
+          ./scripts/merge_config.sh -m ./configs/crosstool-ng/${{ matrix.toolchain }} ./configs/crosstool-ng/local.config
+          ct-ng defconfig DEFCONFIG=.config
+          ct-ng show-config
+          ct-ng build V=2
+
+      - name: Pack toolchain tarball
+        run: |
+          tar -C ${{ github.workspace }}/x-tools \
+              -cvf ${{ matrix.toolchain }}.${{ env.PLATFORM }}.tar.xz ${{ matrix.toolchain }}
+
+      - name: Upload toolchain tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.toolchain }}.${{ env.PLATFORM }}.tar.xz
+          path: ${{ matrix.toolchain }}.${{ env.PLATFORM }}.tar.xz
+
+      - name: upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.toolchain }}.${{ env.PLATFORM }}.log
+          path: |
+            build.log
+            .config
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ matrix.toolchain }}.${{ env.PLATFORM }}.tar.xz

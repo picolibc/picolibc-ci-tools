@@ -1,0 +1,79 @@
+name: Build QEMU
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+    contents: write
+
+env:
+  PLATFORM: "linux-amd64"
+
+jobs:
+  build-qemu:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: stable
+            target-list: "loongarch64-softmmu,m68k-softmmu"
+            repository: qemu/qemu
+            ref: v9.2.0
+            patchdir: patches/qemu/9.2.0
+            extra-args: "--enable-relocatable"
+          - variant: "9.0" # For NIOS2, dropped in 9.1
+            target-list: "nios2-softmmu"
+            repository: qemu/qemu
+            ref: v9.0.4
+            extra-args: "--enable-relocatable"
+          - variant: arc
+            target-list: "arc-softmmu,arc64-softmmu"
+            repository: foss-for-synopsys-dwc-arc-processors/qemu
+            ref: 76e0fa9053b4184a29c9077959d484047eefe521
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "prereq Linux"
+        run: |
+          sudo apt-get install -y ninja-build python3-sphinx python3-sphinx-rtd-theme libglib2.0-dev libpixman-1-dev
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          path: qemu
+
+      - name: "Apply patches"
+        if: matrix.patchdir != ''
+        run: |
+          cd qemu
+          git apply ${{ github.workspace }}/${{ matrix.patchdir }}/*.patch
+
+      - name: Build qemu
+        run: |
+          mkdir -p ${{ github.workspace }}/qemu-${{ matrix.variant }}
+          mkdir build
+          cd build
+          ../qemu/configure --target-list=${{ matrix.target-list }} --without-default-features --enable-tcg --enable-system --static --disable-werror --prefix=${{ github.workspace }}/qemu-${{ matrix.variant }} ${{ matrix.extra-args }}
+          make install -j$(nproc)
+
+      - name: Pack toolchain tarball
+        run: |
+          tar -C ${{ github.workspace }} \
+              -cvf qemu-${{ matrix.variant }}.${{ env.PLATFORM }}.tar.xz qemu-${{ matrix.variant }}
+
+      - name: Upload toolchain tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-${{ matrix.variant }}.${{ env.PLATFORM }}.tar.xz
+          path: qemu-${{ matrix.variant }}.${{ env.PLATFORM }}.tar.xz
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: qemu-${{ matrix.variant }}.${{ env.PLATFORM }}.tar.xz

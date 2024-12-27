@@ -1,0 +1,7 @@
+.build
+.config
+.config.*
+x-tools
+src
+*.log
+include
