@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - variant: stable
-            target-list: "loongarch64-softmmu,m68k-softmmu"
+            target-list: "loongarch64-softmmu,m68k-softmmu,mips-softmmu,mipsel-softmmu,mips64-softmmu,mips64el-softmmu"
             repository: qemu/qemu
             ref: v9.2.0
             patchdir: patches/qemu/9.2.0
