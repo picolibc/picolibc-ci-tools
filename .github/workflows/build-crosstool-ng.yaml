@@ -24,7 +24,6 @@ jobs:
           - toolchain: loongarch64-unknown-elf
           - toolchain: m68k-unknown-elf
 #          - toolchain: msp430-unknown-elf # Broken: https://github.com/picolibc/picolibc/issues/900#issuecomment-2566442990
-          - toolchain: or1k-unknown-elf
 #          - toolchain: sh-unknown-elf # Broken: https://github.com/picolibc/picolibc/issues/900#issuecomment-2564759852
 
     steps:
