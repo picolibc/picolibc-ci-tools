@@ -9,7 +9,7 @@ permissions:
     contents: write
 
 env:
-  CT_NG_REF: 0145966e8e4f73843a72733e59263ce3f8c69f2e
+  CT_NG_REF: 32f288e61fee8528931bcd55bf106cf0cfb4e2a1
   PLATFORM: "linux-amd64"
 
 jobs:
@@ -42,7 +42,9 @@ jobs:
       - name: "Apply patches"
         run: |
           cd crosstool-ng
-          git apply ${{ github.workspace }}/patches/crosstool-ng/*.patch
+          if [ -d "${{ github.workspace }}/patches/crosstool-ng" ] && [ "$(ls -A ${{ github.workspace }}/patches/crosstool-ng)" ]; then
+            git apply ${{ github.workspace }}/patches/crosstool-ng/*.patch
+          fi
 
       - name: Build crosstool-ng
         run: |
