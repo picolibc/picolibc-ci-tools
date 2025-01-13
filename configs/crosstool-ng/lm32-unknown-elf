@@ -1,7 +1,8 @@
 CT_CONFIG_VERSION="4"
 CT_EXPERIMENTAL=y
 CT_ARCH_LM32=y
-CT_CC_LANG_CXX=y
+CT_CC_LANG_CXX=n
+CT_MULTILIB=y
 CT_DEBUG_GDB=y
 CT_GDB_SRC_DEVEL=y
 CT_GDB_DEVEL_URL="https://github.com/picolibc/binutils-gdb.git"
