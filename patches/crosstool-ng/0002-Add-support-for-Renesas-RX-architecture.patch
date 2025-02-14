@@ -1,0 +1,45 @@
+From 02769588cf3a86a8bea1c613d851ef4d5e05609d Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 13 Feb 2025 21:50:37 -0800
+Subject: [PATCH 2/2] Add support for Renesas' RX architecture
+
+This target is already supported in binutils and gcc, so it's
+a simple matter to hook up support in crosstool-ng
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ config/arch/rx.in        | 8 ++++++++
+ scripts/build/arch/rx.sh | 6 ++++++
+ 2 files changed, 14 insertions(+)
+ create mode 100644 config/arch/rx.in
+ create mode 100644 scripts/build/arch/rx.sh
+
+diff --git a/config/arch/rx.in b/config/arch/rx.in
+new file mode 100644
+index 00000000..f4afea61
+--- /dev/null
++++ b/config/arch/rx.in
+@@ -0,0 +1,8 @@
++# RX specific config options
++
++## no-package
++## select ARCH_REQUIRES_MULTILIB
++## depends on EXPERIMENTAL
++##
++## help The 32-bit RX architecture, as defined by:
++## help     https://www.renesas.com/en/products/microcontrollers-microprocessors/rx-32-bit-performance-efficiency-mcus
+diff --git a/scripts/build/arch/rx.sh b/scripts/build/arch/rx.sh
+new file mode 100644
+index 00000000..a2bc2592
+--- /dev/null
++++ b/scripts/build/arch/rx.sh
+@@ -0,0 +1,6 @@
++# Compute RX-specific values
++
++CT_DoArchTupleValues() {
++    # The architecture part of the tuple
++    CT_TARGET_ARCH="${CT_ARCH}"
++}
+-- 
+2.47.2
+

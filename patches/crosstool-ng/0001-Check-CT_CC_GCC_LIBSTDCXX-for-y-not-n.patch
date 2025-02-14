@@ -1,0 +1,50 @@
+From c531c71547f559542b2f3c560ac02bdc7d1b2128 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 13 Feb 2025 21:49:05 -0800
+Subject: [PATCH 1/2] Check CT_CC_GCC_LIBSTDCXX for = "y" not "n"
+
+Config variables don't seem to get the value "n" when unset, so the
+gcc.sh script never managed to pass '--disable-libstdcxx' while
+configuring gcc and so that library got built even when you didn't
+want it.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ scripts/build/cc/gcc.sh | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/scripts/build/cc/gcc.sh b/scripts/build/cc/gcc.sh
+index 2d57459b..4b82dd80 100644
+--- a/scripts/build/cc/gcc.sh
++++ b/scripts/build/cc/gcc.sh
+@@ -390,10 +390,10 @@ do_gcc_core_backend() {
+     esac
+ 
+     if [ "${build_libstdcxx}" = "yes" ]; then
+-        if [ "${CT_CC_GCC_LIBSTDCXX}" = "n" ]; then
+-            build_libstdcxx="no"
+-        elif [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
++        if [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
+             extra_config+=("--enable-libstdcxx")
++	else
++            build_libstdcxx="no"
+         fi
+ 
+         if [ "${CT_LIBC_AVR_LIBC}" = "y" ]; then
+@@ -1091,10 +1091,10 @@ do_gcc_backend() {
+         "") extra_config+=("--disable-libstdcxx-verbose");;
+     esac
+     
+-    if [ "${CT_CC_GCC_LIBSTDCXX}" = "n" ]; then
+-        extra_config+=(--disable-libstdcxx)
+-    elif [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
++    if [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
+         extra_config+=(--enable-libstdcxx)
++    else
++        extra_config+=(--disable-libstdcxx)
+     fi
+ 
+     if [ "${CT_CC_GCC_LIBSTDCXX_HOSTED_DISABLE}" = "y" ]; then
+-- 
+2.47.2
+
