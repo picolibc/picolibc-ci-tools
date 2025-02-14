@@ -1,0 +1,53 @@
+From 494f87cede423a32f3f7decf555fc5628358c646 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Wed, 12 Feb 2025 16:42:38 -0800
+Subject: [PATCH 3/4] target/rx: Reset the CPU at qemu reset time
+
+This ensure that the CPU gets reset every time QEMU resets.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ target/rx/cpu.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/target/rx/cpu.c b/target/rx/cpu.c
+index 65a74ce720..07157ef4e0 100644
+--- a/target/rx/cpu.c
++++ b/target/rx/cpu.c
+@@ -26,6 +26,7 @@
+ #include "hw/loader.h"
+ #include "fpu/softfloat.h"
+ #include "tcg/debug-assert.h"
++#include "sysemu/reset.h"
+ 
+ static void rx_cpu_set_pc(CPUState *cs, vaddr value)
+ {
+@@ -118,6 +119,13 @@ static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
+     return oc;
+ }
+ 
++static void rx_cpu_reset(void *opaque)
++{
++    RXCPU *cpu = opaque;
++
++    cpu_reset(CPU(cpu));
++}
++
+ static void rx_cpu_realize(DeviceState *dev, Error **errp)
+ {
+     CPUState *cs = CPU(dev);
+@@ -131,9 +139,10 @@ static void rx_cpu_realize(DeviceState *dev, Error **errp)
+     }
+ 
+     qemu_init_vcpu(cs);
+-    cpu_reset(cs);
+ 
+     rcc->parent_realize(dev, errp);
++
++    qemu_register_reset(rx_cpu_reset, RX_CPU(cs));
+ }
+ 
+ static void rx_cpu_set_irq(void *opaque, int no, int request)
+-- 
+2.47.2
+

@@ -1,0 +1,30 @@
+From 187dc6d9f4281468cd01cb2d14c0b3d2827155aa Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Wed, 12 Feb 2025 18:46:05 -0800
+Subject: [PATCH 1/4] hw/rx: Allow execution without either bios or kernel
+
+Users can use -device loader to get an ELF file loaded to
+memory, so we don't need to require one of these options.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ hw/rx/rx-gdbsim.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/hw/rx/rx-gdbsim.c b/hw/rx/rx-gdbsim.c
+index bb4746c556..d65c30f072 100644
+--- a/hw/rx/rx-gdbsim.c
++++ b/hw/rx/rx-gdbsim.c
+@@ -110,9 +110,6 @@ static void rx_gdbsim_init(MachineState *machine)
+     if (!kernel_filename) {
+         if (machine->firmware) {
+             rom_add_file_fixed(machine->firmware, RX62N_CFLASH_BASE, 0);
+-        } else if (!qtest_enabled()) {
+-            error_report("No bios or kernel specified");
+-            exit(1);
+         }
+     }
+ 
+-- 
+2.47.2
+
