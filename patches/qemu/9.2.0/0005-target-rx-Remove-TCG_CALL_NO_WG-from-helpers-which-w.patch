@@ -1,0 +1,50 @@
+From 509a40a409c06e740547c02604b4dccb4c8f31ae Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Fri, 14 Feb 2025 18:02:08 -0800
+Subject: [PATCH 5/5] target/rx: Remove TCG_CALL_NO_WG from helpers which write
+ env
+
+Functions which modify virtual machine state (such as virtual
+registers stored in memory) must not be marked TCG_CALL_NO_WG as that
+tells the optimizer that virtual registers values already loaded in
+machine registers are still valid, hence discards any changes which
+these helpers may have made.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ target/rx/helper.h | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/target/rx/helper.h b/target/rx/helper.h
+index ebb4739474..ac21f4fddd 100644
+--- a/target/rx/helper.h
++++ b/target/rx/helper.h
+@@ -13,18 +13,18 @@ DEF_HELPER_FLAGS_2(ftoi, TCG_CALL_NO_WG, i32, env, f32)
+ DEF_HELPER_FLAGS_2(round, TCG_CALL_NO_WG, i32, env, f32)
+ DEF_HELPER_FLAGS_2(itof, TCG_CALL_NO_WG, f32, env, i32)
+ DEF_HELPER_2(set_fpsw, void, env, i32)
+-DEF_HELPER_FLAGS_2(racw, TCG_CALL_NO_WG, void, env, i32)
+-DEF_HELPER_FLAGS_2(set_psw_rte, TCG_CALL_NO_WG, void, env, i32)
+-DEF_HELPER_FLAGS_2(set_psw, TCG_CALL_NO_WG, void, env, i32)
++DEF_HELPER_2(racw, void, env, i32)
++DEF_HELPER_2(set_psw_rte, void, env, i32)
++DEF_HELPER_2(set_psw, void, env, i32)
+ DEF_HELPER_1(pack_psw, i32, env)
+ DEF_HELPER_FLAGS_3(div, TCG_CALL_NO_WG, i32, env, i32, i32)
+ DEF_HELPER_FLAGS_3(divu, TCG_CALL_NO_WG, i32, env, i32, i32)
+-DEF_HELPER_FLAGS_1(scmpu, TCG_CALL_NO_WG, void, env)
++DEF_HELPER_1(scmpu, void, env)
+ DEF_HELPER_1(smovu, void, env)
+ DEF_HELPER_1(smovf, void, env)
+ DEF_HELPER_1(smovb, void, env)
+ DEF_HELPER_2(sstr, void, env, i32)
+-DEF_HELPER_FLAGS_2(swhile, TCG_CALL_NO_WG, void, env, i32)
+-DEF_HELPER_FLAGS_2(suntil, TCG_CALL_NO_WG, void, env, i32)
+-DEF_HELPER_FLAGS_2(rmpa, TCG_CALL_NO_WG, void, env, i32)
++DEF_HELPER_2(swhile, void, env, i32)
++DEF_HELPER_2(suntil, void, env, i32)
++DEF_HELPER_2(rmpa, void, env, i32)
+ DEF_HELPER_1(satr, void, env)
+-- 
+2.47.2
+
