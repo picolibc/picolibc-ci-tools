@@ -1,0 +1,41 @@
+From aa1edca850592579289d81713060e9fe57ff3bfd Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sun, 2 Mar 2025 16:34:47 -0800
+Subject: [PATCH] gas: Recognize remaining openrisc TLS relocs in md_apply_fix
+
+There were a few TLS relocation types which weren't included in the
+check for when to apply S_SET_THREAD_LOCAL in or1k_apply_fix. This
+caused files compiled with -ftls-model=local-exec to generate ELF
+files without having the extern _Thread_local symbols marked as TLS
+and caused link failures.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gas/config/tc-or1k.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/gas/config/tc-or1k.c b/gas/config/tc-or1k.c
+index 0dcb6ea7d56..ab600622445 100644
+--- a/gas/config/tc-or1k.c
++++ b/gas/config/tc-or1k.c
+@@ -368,11 +368,17 @@ or1k_apply_fix (struct fix *f, valueT *t, segT s)
+     case BFD_RELOC_OR1K_TLS_LDO_HI16:
+     case BFD_RELOC_OR1K_TLS_LDO_LO16:
+     case BFD_RELOC_OR1K_TLS_IE_HI16:
++    case BFD_RELOC_OR1K_TLS_IE_AHI16:
+     case BFD_RELOC_OR1K_TLS_IE_LO16:
+     case BFD_RELOC_OR1K_TLS_IE_PG21:
+     case BFD_RELOC_OR1K_TLS_IE_LO13:
+     case BFD_RELOC_OR1K_TLS_LE_HI16:
++    case BFD_RELOC_OR1K_TLS_LE_AHI16:
+     case BFD_RELOC_OR1K_TLS_LE_LO16:
++    case BFD_RELOC_OR1K_TLS_LE_SLO16:
++    case BFD_RELOC_OR1K_TLS_TPOFF:
++    case BFD_RELOC_OR1K_TLS_DTPOFF:
++    case BFD_RELOC_OR1K_TLS_DTPMOD:
+       S_SET_THREAD_LOCAL (f->fx_addsy);
+       break;
+     default:
+-- 
+2.47.2
+
