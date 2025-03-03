@@ -1,0 +1,76 @@
+From f69bee1f3fe4d6cef415b1e1d623b441996f6234 Mon Sep 17 00:00:00 2001
+From: Xianmiao Qu <cooper.qu@linux.alibaba.com>
+Date: Sun, 25 Aug 2024 11:22:21 -0600
+Subject: [PATCH 11/11] [PATCH] Re-add calling emit_clobber in
+ lower-subreg.cc's resolve_simple_move.
+
+The previous patch:
+https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=d8a6945c6ea22efa4d5e42fe1922d2b27953c8cd
+aimed to eliminate redundant MOV instructions by removing calling
+emit_clobber in lower-subreg.cc's resolve_simple_move.
+
+First, I found that another patch address this issue:
+https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=bdf2737cda53a83332db1a1a021653447b05a7e7
+and even without removing calling emit_clobber,
+the instruction generation is still as expected.
+
+Second, removing the CLOBBER expression will have side effects.
+When there is no CLOBBER expression and only SUBREG assignments exist,
+according to the logic of the 'df_lr_bb_local_compute' function,
+the register will be added to the basic block LR IN set.
+This will cause the register's lifetime to span the entire function,
+resulting in increased register pressure. Taking the newly added test case
+'gcc/testsuite/gcc.target/riscv/pr43644.c' as an example,
+removing the CLOBBER expression will lead to spill in some registers.
+
+gcc/:
+	* lower-subreg.cc (resolve_simple_move): Re-add calling emit_clobber
+	immediately before moving a multi-word register by parts.
+
+gcc/testsuite/:
+	* gcc.target/riscv/pr43644.c: New test case.
+---
+ gcc/lower-subreg.cc                      |  3 +++
+ gcc/testsuite/gcc.target/riscv/pr43644.c | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)
+ create mode 100644 gcc/testsuite/gcc.target/riscv/pr43644.c
+
+diff --git a/gcc/lower-subreg.cc b/gcc/lower-subreg.cc
+index d1da94336e7..89608934c99 100644
+--- a/gcc/lower-subreg.cc
++++ b/gcc/lower-subreg.cc
+@@ -1101,6 +1101,9 @@ resolve_simple_move (rtx set, rtx_insn *insn)
+     {
+       unsigned int i;
+ 
++      if (REG_P (dest) && !HARD_REGISTER_NUM_P (REGNO (dest)))
++	emit_clobber (dest);
++
+       for (i = 0; i < words; ++i)
+ 	{
+ 	  rtx t = simplify_gen_subreg_concatn (word_mode, dest,
+diff --git a/gcc/testsuite/gcc.target/riscv/pr43644.c b/gcc/testsuite/gcc.target/riscv/pr43644.c
+new file mode 100644
+index 00000000000..3b7ddb9e0ad
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/riscv/pr43644.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-march=rv32imac -mabi=ilp32 -O2 -fdump-rtl-ira" } */
++
++double foo (double a)
++{
++  if (a < 0.0)
++    return a + 1.0;
++  else if (a > 16.0)
++    return a - 3.0;
++  else if (a < 300.0)
++    return a - 30.0;
++  else
++    return a;
++}
++
++/* { dg-final { scan-rtl-dump-not "memory is more profitable" "ira" } } */
+-- 
+2.47.2
+

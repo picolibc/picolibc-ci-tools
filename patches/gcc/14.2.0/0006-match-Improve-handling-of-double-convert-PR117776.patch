@@ -1,0 +1,151 @@
+From 4268fea33230760afea7671b2bbd7d0765715bff Mon Sep 17 00:00:00 2001
+From: Andrew Pinski <quic_apinski@quicinc.com>
+Date: Mon, 25 Nov 2024 16:04:21 -0800
+Subject: [PATCH 06/11] match: Improve handling of double convert [PR117776]
+
+For a double conversion, we will simplify it into a conversion
+with an and if the outer type and inside precision matches and
+the intra precision is smaller and unsigned. We should be able
+to extend this to where the outer precision is larger too.
+This is a good canonicalization too.
+
+Bootstrapped and tested on x86_64-linux-gnu.
+
+	PR tree-optimization/117776
+gcc/ChangeLog:
+
+	* match.pd (nested int casts): Allow for the case
+	where the final prec is greater than the original
+	prec.
+
+gcc/testsuite/ChangeLog:
+
+	* g++.dg/vect/pr117776.cc: New test.
+	* gcc.dg/tree-ssa/cast-3.c: New test.
+
+Signed-off-by: Andrew Pinski <quic_apinski@quicinc.com>
+---
+ gcc/match.pd                           |  4 +-
+ gcc/testsuite/g++.dg/vect/pr117776.cc  | 62 ++++++++++++++++++++++++++
+ gcc/testsuite/gcc.dg/tree-ssa/cast-3.c | 25 +++++++++++
+ 3 files changed, 89 insertions(+), 2 deletions(-)
+ create mode 100644 gcc/testsuite/g++.dg/vect/pr117776.cc
+ create mode 100644 gcc/testsuite/gcc.dg/tree-ssa/cast-3.c
+
+diff --git a/gcc/match.pd b/gcc/match.pd
+index 4a0aa80cee1..2dffde8598c 100644
+--- a/gcc/match.pd
++++ b/gcc/match.pd
+@@ -4836,8 +4836,8 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+        canonicalized as bitwise and of a mask.  */
+     (if (GIMPLE /* PR70366: doing this in GENERIC breaks -Wconversion.  */
+ 	 && final_int && inter_int && inside_int
+-	 && final_prec == inside_prec
+-	 && final_prec > inter_prec
++	 && final_prec >= inside_prec
++	 && inside_prec > inter_prec
+ 	 && inter_unsignedp)
+      (convert (bit_and @0 { wide_int_to_tree
+ 	                      (inside_type,
+diff --git a/gcc/testsuite/g++.dg/vect/pr117776.cc b/gcc/testsuite/g++.dg/vect/pr117776.cc
+new file mode 100644
+index 00000000000..cbb8079bd91
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/vect/pr117776.cc
+@@ -0,0 +1,62 @@
++// { dg-do compile }
++// { dg-require-effective-target vect_int }
++
++// PR tree-optimization/117776
++
++typedef __SIZE_TYPE__ size_t;
++typedef unsigned int u32;
++typedef unsigned char u8;
++
++static inline const bool
++is_even_bool(u8 n)
++{
++ return n % 2 == 0;
++}
++
++static inline const u32
++is_even_u32(u8 n)
++{
++  return n % 2 == 0;
++}
++
++static inline
++const u32 is_even_convert(u8 n)
++{
++  return is_even_bool(n);
++}
++
++u32 count_even_v1(u8 *data, size_t len)
++{
++  u32 ret = 0;
++  for (size_t i = 0; i < len; i++)
++    ret += is_even_bool(data[i]);
++  return ret;
++}
++
++u32 count_even_v2(u8 *data, size_t len)
++{
++  u32 ret = 0;
++  for (size_t i = 0; i < len; i++)
++    ret += is_even_u32(data[i]);
++  return ret;
++}
++
++u32 count_even_v3(u8 *data, size_t len)
++{
++  u32 ret = 0;
++  for (size_t i = 0; i < len; i++)
++    ret += is_even_convert(data[i]);
++  return ret;
++}
++
++u32 count_even_v4(u8 *data, size_t len)
++{
++  u32 ret = 0;
++  for (size_t i = 0; i < len; i++)
++    ret += static_cast<u32>(is_even_bool(data[i]));
++  return ret;
++}
++
++// All 4 count_even_v functions should be vectorized
++
++// { dg-final { scan-tree-dump-times "LOOP VECTORIZED" 4 "vect" } }
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/cast-3.c b/gcc/testsuite/gcc.dg/tree-ssa/cast-3.c
+new file mode 100644
+index 00000000000..37214ecb915
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tree-ssa/cast-3.c
+@@ -0,0 +1,25 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fdump-tree-optimized" } */
++
++/* PR tree-optimization/117776 */
++
++/* These 2 functions should be optimized to just `return 1;`
++   as `(int)(unsigned smaller)medium` is the same as
++   `(int)medium&smaller_mask` where smaller_mask in this case is
++   either `1` (_Bool) or `0xff` (char).   */
++int f(unsigned char a)
++{
++  _Bool odd = (a & 1) != 0;
++  int odd1 = (a & 1) != 0;
++  return odd == odd1;
++}
++int g(unsigned short a)
++{
++  unsigned char b = a;
++  int d = b;
++  unsigned short c = a&0xff;
++  int e = c;
++  return d == e;
++}
++
++/* { dg-final { scan-tree-dump-times "return 1" 2 "optimized" } } */
+-- 
+2.47.2
+

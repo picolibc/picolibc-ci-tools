@@ -1,7 +1,7 @@
-From 507390eff3310e1fabab7bef30087936c9d38db4 Mon Sep 17 00:00:00 2001
+From c04fbd4647edadaa6b24eaef27736773ebd1319c Mon Sep 17 00:00:00 2001
 From: Duy Nguyen <duy.nguyen.xa@renesas.com>
 Date: Wed, 22 Jan 2025 10:48:42 +0700
-Subject: [PATCH 1/2] [rx] Support RX GCC Zephyr build
+Subject: [PATCH 03/11] [rx] Support RX GCC Zephyr build
 
 This commit add RX zephyr build config
 

@@ -1,0 +1,37 @@
+From e0d82650412ae9346cbf8d668205e42280b0b98b Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 31 Oct 2023 22:43:51 -0700
+Subject: [PATCH 10/11] sh: Hack to get computed case tables to not overflow
+
+I've got one switch statement which generates an offset of 128 bytes
+and for some reason that still gets encoded as signed bytes, leading
+to tears. Hack around that by pretending we need unsigned bytes for
+that value.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config/sh/sh.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/sh/sh.h b/gcc/config/sh/sh.h
+index 25430eefc0a..e354640afab 100644
+--- a/gcc/config/sh/sh.h
++++ b/gcc/config/sh/sh.h
+@@ -1423,11 +1423,11 @@ extern bool current_function_interrupt;
+ #define CASE_VECTOR_MODE ((! optimize || TARGET_BIGTABLE) ? SImode : HImode)
+ 
+ #define CASE_VECTOR_SHORTEN_MODE(MIN_OFFSET, MAX_OFFSET, BODY) \
+-((MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 127 \
++((MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 125 \
+  ? (ADDR_DIFF_VEC_FLAGS (BODY).offset_unsigned = 0, QImode) \
+- : (MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 255 \
++ : (MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 253 \
+  ? (ADDR_DIFF_VEC_FLAGS (BODY).offset_unsigned = 1, QImode) \
+- : (MIN_OFFSET) >= -32768 && (MAX_OFFSET) <= 32767 ? HImode \
++ : (MIN_OFFSET) >= -32768 && (MAX_OFFSET) <= 32765 ? HImode \
+  : SImode)
+ 
+ /* Define as C expression which evaluates to nonzero if the tablejump
+-- 
+2.47.2
+

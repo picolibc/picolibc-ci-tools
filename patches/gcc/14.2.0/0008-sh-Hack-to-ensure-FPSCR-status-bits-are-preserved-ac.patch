@@ -1,0 +1,119 @@
+From 6253fdc7644d239bbde0082050bcdd56c9df5665 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Wed, 25 Oct 2023 15:54:10 -0700
+Subject: [PATCH 08/11] sh: Hack to ensure FPSCR status bits are preserved
+ across PR changes
+
+Here's a hack for SH targets. In this machine,
+the FPSCR (floating-point status/control register)
+contains both the FP status bits (eq, lt, etc)
+as well as a special control bit (PR) that decides whether
+FP instructions operate in single or double mode.
+
+On new enough targets, there's a special instruction
+(fpchg) that just flips the PR bits without messing with
+anything else. No problems here.
+
+On other targets, the only way to change the PR bit is to
+write the whole FPSCR register. We need to make sure the
+FPSCR is read again after any FP operation but before any
+FPSCR write, so the FPSCR read operation does this:
+
+(define_insn "sts_fpscr"
+ [(set (match_operand:SI 0 "fpscr_movdst_operand" "=r,<")
+	    (reg:SI FPSCR_REG))
+  (use (reg:SI FPSCR_STAT_REG))
+  (use (reg:SI FPSCR_MODES_REG))]
+
+If the code here only looks at the 'set' operation, it
+misses the critical information that this operation
+depends upon the FPSCR_REG as well as the virtual
+FPSCR_STAT_REG and FPSCR_MODES_REG values.
+
+Because of this, it determines that a previous FPSCR
+value (probably loaded before an FP operation) is the
+same as would be loaded by this insn and so this insn is
+deleted. This causes the previous FPSCR status bits to
+smash any status updates caused by intervening FP
+operations.
+
+We avoid this by not deleting the instruction in this
+case, which is "safe", but will probably also hit some
+other valid use cases. A correct fix would take more time
+than I'm willing to spend.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config/sh/sh.h |  2 ++
+ gcc/postreload.cc  | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)
+
+diff --git a/gcc/config/sh/sh.h b/gcc/config/sh/sh.h
+index f76829b0966..25430eefc0a 100644
+--- a/gcc/config/sh/sh.h
++++ b/gcc/config/sh/sh.h
+@@ -1877,4 +1877,6 @@ extern tree *sh_deferred_function_attributes_tail;
+ 2:\n" TEXT_SECTION_ASM_OP);
+ #endif /* (defined CRT_BEGIN || defined CRT_END) */
+ 
++#define HACK_DISABLE_PARALLEL_CSE_SIMPLIFY_USE_CLOBBER
++
+ #endif /* ! GCC_SH_H */
+diff --git a/gcc/postreload.cc b/gcc/postreload.cc
+index 08952ae8755..d19df3e9f8f 100644
+--- a/gcc/postreload.cc
++++ b/gcc/postreload.cc
+@@ -156,7 +156,50 @@ reload_cse_simplify (rtx_insn *insn, rtx testreg)
+ 		  value = SET_DEST (part);
+ 		}
+ 	    }
++	  /*
++	   * Here's a hack for SH targets. In this machine,
++	   * the FPSCR (floating-point status/control register)
++	   * contains both the FP status bits (eq, lt, etc)
++	   * as well as a special control bit (PR) that decides whether
++	   * FP instructions operate in single or double mode.
++	   *
++	   * On new enough targets, there's a special instruction
++	   * (fpchg) that just flips the PR bits without messing with
++	   * anything else. No problems here.
++	   *
++	   * On other targets, the only way to change the PR bit is to
++	   * write the whole FPSCR register. We need to make sure the
++	   * FPSCR is read again after any FP operation but before any
++	   * FPSCR write, so the FPSCR read operation does this:
++	   *
++	   * (define_insn "sts_fpscr"
++	   *  [(set (match_operand:SI 0 "fpscr_movdst_operand" "=r,<")
++	   *	    (reg:SI FPSCR_REG))
++	   *   (use (reg:SI FPSCR_STAT_REG))
++	   *   (use (reg:SI FPSCR_MODES_REG))]
++	   *
++	   * If the code here only looks at the 'set' operation, it
++	   * misses the critical information that this operation
++	   * depends upon the FPSCR_REG as well as the virtual
++	   * FPSCR_STAT_REG and FPSCR_MODES_REG values.
++	   *
++	   * Because of this, it determines that a previous FPSCR
++	   * value (probably loaded before an FP operation) is the
++	   * same as would be loaded by this insn and so this insn is
++	   * deleted. This causes the previous FPSCR status bits to
++	   * smash any status updates caused by intervening FP
++	   * operations.
++	   *
++	   * We avoid this by not deleting the instruction in this
++	   * case, which is "safe", but will probably also hit some
++	   * other valid use cases. A correct fix would take more time
++	   * than I'm willing to spend.
++	   */
++#ifdef HACK_DISABLE_PARALLEL_CSE_SIMPLIFY_USE_CLOBBER
++	  else
++#else
+ 	  else if (GET_CODE (part) != CLOBBER && GET_CODE (part) != USE)
++#endif
+ 	    break;
+ 	}
+ 
+-- 
+2.47.2
+

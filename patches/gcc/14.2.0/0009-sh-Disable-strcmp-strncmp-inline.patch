@@ -1,0 +1,39 @@
+From c98d7795808e05fd3fe3ff5de2f670577bbb9ac2 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 31 Oct 2023 21:36:06 -0700
+Subject: [PATCH 09/11] sh: Disable strcmp/strncmp inline
+
+These generate incorrect answers when the inputs differ
+by the top bit of the top byte of the four-byte group because
+that causes the result to have the wrong sign.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config/sh/sh.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/config/sh/sh.md b/gcc/config/sh/sh.md
+index 19481c07db6..ff32990226e 100644
+--- a/gcc/config/sh/sh.md
++++ b/gcc/config/sh/sh.md
+@@ -9029,7 +9029,7 @@ (define_expand "cmpstrsi"
+    (use (match_operand 3 "immediate_operand"))]
+   "TARGET_SH1 && optimize"
+ {
+-  if (! optimize_insn_for_size_p () && sh_expand_cmpstr (operands))
++  if (0 && ! optimize_insn_for_size_p () && sh_expand_cmpstr (operands))
+     DONE;
+   else
+     FAIL;
+@@ -9043,7 +9043,7 @@ (define_expand "cmpstrnsi"
+    (use (match_operand:SI 4 "immediate_operand"))]
+   "TARGET_SH1 && optimize"
+ {
+-  if (! optimize_insn_for_size_p () && sh_expand_cmpnstr (operands))
++  if (0 && ! optimize_insn_for_size_p () && sh_expand_cmpnstr (operands))
+     DONE;
+   else
+     FAIL;
+-- 
+2.47.2
+

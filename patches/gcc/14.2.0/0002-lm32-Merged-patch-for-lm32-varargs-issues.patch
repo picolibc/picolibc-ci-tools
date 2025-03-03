@@ -1,7 +1,7 @@
-From a8c17866d9506c3feba8973ebea3f0adc163a861 Mon Sep 17 00:00:00 2001
+From 46e5546d230b67d2fd361f3b35c3399368292bb3 Mon Sep 17 00:00:00 2001
 From: Keith Packard <keithp@keithp.com>
 Date: Sun, 12 Jan 2025 17:19:49 -0800
-Subject: [PATCH] lm32: Merged patch for lm32 varargs issues
+Subject: [PATCH 02/11] lm32: Merged patch for lm32 varargs issues
 
 This also contains three other patches required to make the varargs
 fix work.
@@ -392,5 +392,5 @@ index 594f733e0d5..9435f8c7308 100644
 +
 +#include "gt-lm32.h"
 -- 
-2.45.2
+2.47.2
 

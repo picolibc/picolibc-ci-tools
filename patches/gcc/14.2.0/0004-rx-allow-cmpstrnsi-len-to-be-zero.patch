@@ -1,7 +1,7 @@
-From 622a8922a87d9810cd5bcba3f70a46e10e1c1f12 Mon Sep 17 00:00:00 2001
+From b611454217375ca1bfb9a9d0fa67acf90756edd5 Mon Sep 17 00:00:00 2001
 From: Keith Packard <keithp@keithp.com>
 Date: Thu, 13 Feb 2025 12:49:58 -0800
-Subject: [PATCH 2/2] rx: allow cmpstrnsi len to be zero
+Subject: [PATCH 04/11] rx: allow cmpstrnsi len to be zero
 
 The SCMPU instruction doesn't change the C and Z flags when the
 incoming length is zero, which means the insn will produce a

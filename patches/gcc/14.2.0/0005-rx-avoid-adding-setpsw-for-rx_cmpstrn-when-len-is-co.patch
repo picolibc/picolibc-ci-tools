@@ -1,0 +1,62 @@
+From 25972eed333cdce07034a12db81d137283cb6b17 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 13 Feb 2025 12:49:58 -0800
+Subject: [PATCH 05/11] rx: avoid adding setpsw for rx_cmpstrn when len is
+ const
+
+We can avoid the setpsw instructions when len is a known constant.
+When len is zero, the insn result is zero. When len is non-zero,
+the scmpu instructions will set the flags correctly.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config/rx/rx.md | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/rx/rx.md b/gcc/config/rx/rx.md
+index 27ba373d9b4..733c1aa1d8c 100644
+--- a/gcc/config/rx/rx.md
++++ b/gcc/config/rx/rx.md
+@@ -2545,6 +2545,16 @@ (define_expand "cmpstrnsi"
+    (match_operand:SI                            4 "immediate_operand")] ;; Known Align
+   "rx_allow_string_insns"
+   {
++    bool const_len = CONST_INT_P(operands[3]);
++    if (const_len)
++    {
++      if (INTVAL(operands[3]) == 0)
++      {
++        emit_move_insn (operands[0], operands[3]);
++        DONE;
++      }
++    }
++
+     rtx str1 = gen_rtx_REG (SImode, 1);
+     rtx str2 = gen_rtx_REG (SImode, 2);
+     rtx len  = gen_rtx_REG (SImode, 3);
+@@ -2553,6 +2563,11 @@ (define_expand "cmpstrnsi"
+     emit_move_insn (str2, force_operand (XEXP (operands[2], 0), NULL_RTX));
+     emit_move_insn (len, operands[3]);
+ 
++    /* Set flags in case len is zero */
++    if (!const_len) {
++      emit_insn (gen_setpsw (GEN_INT('C')));
++      emit_insn (gen_setpsw (GEN_INT('Z')));
++    }
+     emit_insn (gen_rx_cmpstrn (operands[0], operands[1], operands[2]));
+     DONE;
+   }
+@@ -2590,9 +2605,7 @@ (define_insn "rx_cmpstrn"
+    (clobber (reg:SI 3))
+    (clobber (reg:CC CC_REG))]
+   "rx_allow_string_insns"
+-  "setpsw  z		; Set flags in case len is zero
+-   setpsw  c
+-   scmpu		; Perform the string comparison
++  "scmpu		; Perform the string comparison
+    mov     #-1, %0      ; Set up -1 result (which cannot be created
+                         ; by the SC insn)
+    bnc	   ?+		; If Carry is not set skip over
+-- 
+2.47.2
+

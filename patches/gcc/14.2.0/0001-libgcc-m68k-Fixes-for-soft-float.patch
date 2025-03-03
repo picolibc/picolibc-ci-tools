@@ -1,7 +1,7 @@
-From c1ea994aaadce76de76e7901d6f21a3f50c9c777 Mon Sep 17 00:00:00 2001
+From 4c3bf250e6eb7acecc8eacd571a049b8e7120abd Mon Sep 17 00:00:00 2001
 From: Keith Packard <keithp@keithp.com>
 Date: Sun, 29 Dec 2024 01:42:29 -0800
-Subject: [PATCH] libgcc/m68k: Fixes for soft float
+Subject: [PATCH 01/11] libgcc/m68k: Fixes for soft float
 
 Fix __extenddfxf2:
 
@@ -45,7 +45,7 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
  2 files changed, 45 insertions(+), 46 deletions(-)
 
 diff --git a/libgcc/config/m68k/fpgnulib.c b/libgcc/config/m68k/fpgnulib.c
-index 70bfd442d7506..a7d4258dff01b 100644
+index 04f62998f6e..62fe505aea4 100644
 --- a/libgcc/config/m68k/fpgnulib.c
 +++ b/libgcc/config/m68k/fpgnulib.c
 @@ -449,34 +449,37 @@ __extenddfxf2 (double d)
@@ -179,7 +179,7 @@ index 70bfd442d7506..a7d4258dff01b 100644
  
  /* The remaining provide crude math support by working in double precision.  */
 diff --git a/libgcc/config/m68k/lb1sf68.S b/libgcc/config/m68k/lb1sf68.S
-index 22f2772520cf0..ebec095c6e784 100644
+index 22f2772520c..ebec095c6e7 100644
 --- a/libgcc/config/m68k/lb1sf68.S
 +++ b/libgcc/config/m68k/lb1sf68.S
 @@ -635,7 +635,7 @@ SYM (__modsi3):
@@ -247,3 +247,6 @@ index 22f2772520cf0..ebec095c6e784 100644
  	moveq	IMM (INEXACT_RESULT+UNDERFLOW),d7
  	moveq	IMM (SINGLE_FLOAT),d6
  	PICJUMP	$_exception_handler
+-- 
+2.47.2
+
