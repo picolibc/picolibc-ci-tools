@@ -38,7 +38,7 @@ jobs:
           - toolchain: rx-zephyr-elf
           - toolchain: or1k-unknown-elf
           - toolchain: msp430-unknown-elf
-#          - toolchain: sh-unknown-elf # Broken: https://github.com/picolibc/picolibc/issues/900#issuecomment-2564759852
+          - toolchain: sh-unknown-elf
 
     steps:
       - uses: actions/checkout@v4
