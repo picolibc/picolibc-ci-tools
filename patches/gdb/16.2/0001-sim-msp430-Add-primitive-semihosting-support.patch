@@ -1,0 +1,85 @@
+From 6e2620cb10b31e97b7960ed2c3528e3143009371 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 9 Sep 2023 00:58:07 -0700
+Subject: [PATCH 1/3] sim/msp430: Add primitive semihosting support
+
+Provide _exit() and putchar() implementations by trapping byte writes
+of #1 to CG2.  This allows running automated tests
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ sim/msp430/msp430-sim.c | 45 +++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 11 deletions(-)
+
+diff --git a/sim/msp430/msp430-sim.c b/sim/msp430/msp430-sim.c
+index 8c57d57b753..bd6584b77f9 100644
+--- a/sim/msp430/msp430-sim.c
++++ b/sim/msp430/msp430-sim.c
+@@ -1038,6 +1038,22 @@ maybe_perform_syscall (SIM_DESC sd, int call_addr)
+   return 0;
+ }
+ 
++static void
++msp430_semihost (SIM_DESC sd)
++{
++  sim_cpu *cpu = STATE_CPU (sd, 0);
++  struct msp430_cpu_state *msp430_cpu = MSP430_SIM_CPU (cpu);
++
++  switch(REG(12)) {
++  case 0:
++    sim_engine_halt(sd, STATE_CPU (sd, 0), NULL, REG(0), sim_exited, REG(13));
++    break;
++  case 1:
++    putchar(REG(13));
++    break;
++  }
++}
++
+ static void
+ msp430_step_once (SIM_DESC sd)
+ {
+@@ -1120,23 +1136,30 @@ msp430_step_once (SIM_DESC sd)
+ 	  && opcode->op[0].type == MSP430_Operand_Register
+ 	  && opcode->op[0].reg == MSR_CG
+ 	  && opcode->op[1].type == MSP430_Operand_Immediate
+-	  && opcode->op[1].addend == 0
+-	  /* A 16-bit write of #0 is a NOP; an 8-bit write is a BRK.  */
++	  /* only 8-bit writes are magic */
+ 	  && opcode->size == 8)
+ 	{
++	  /* an 8-bit write of #0 is a BRK.  */
+ 	  /* This is the designated software breakpoint instruction.  */
+-	  PC -= opsize;
+-	  sim_engine_halt (sd, cpu, NULL, msp430_cpu->regs[0], sim_stopped,
+-			   SIM_SIGTRAP);
+-	}
+-      else
+-	{
+-	  /* Otherwise, do the move.  */
+-	  for (rept = 0; rept < n_repeats; rept ++)
++	  if (opcode->op[1].addend == 0)
++	    {
++	      PC -= opsize;
++	      sim_engine_halt (sd, cpu, NULL, msp430_cpu->regs[0], sim_stopped,
++			       SIM_SIGTRAP);
++	      break;
++	    }
++	  else if (opcode->op[1].addend == 1)
+ 	    {
+-	      DEST (SRC);
++	      msp430_semihost(sd);
++	      break;
+ 	    }
+ 	}
++
++      /* Otherwise, do the move.  */
++      for (rept = 0; rept < n_repeats; rept ++)
++      {
++	DEST (SRC);
++      }
+       break;
+ 
+     case MSO_addc:
+-- 
+2.47.2
+

@@ -1,0 +1,30 @@
+From 3bb5ca2e8b79bb569107ff8c72940f60997d9bad Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 11 Jan 2025 15:09:13 -0800
+Subject: [PATCH 3/3] sim/lm32: Pass through all syscalls to host
+
+This traps all scall instructions and passes the result through to the
+host, allowing full semihosting support for applications.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ sim/lm32/traps.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/sim/lm32/traps.c b/sim/lm32/traps.c
+index cb8af11cfb0..a6c68783ec6 100644
+--- a/sim/lm32/traps.c
++++ b/sim/lm32/traps.c
+@@ -129,8 +129,7 @@ lm32bf_scall_insn (SIM_CPU * current_cpu, IADDR pc)
+ {
+   SIM_DESC sd = CPU_STATE (current_cpu);
+ 
+-  if ((STATE_ENVIRONMENT (sd) != OPERATING_ENVIRONMENT)
+-      || (GET_H_GR (8) == TARGET_NEWLIB_SYS_exit))
++  if ((STATE_ENVIRONMENT (sd) != OPERATING_ENVIRONMENT))
+     {
+       /* Delegate system call to host O/S.  */
+       long result, result2;
+-- 
+2.47.2
+

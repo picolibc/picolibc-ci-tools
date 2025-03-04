@@ -1,0 +1,32 @@
+From 86be952036797fda853e7abc379825fb57190ce2 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 9 Sep 2023 01:11:11 -0700
+Subject: [PATCH 2/3] Add README.MSP430
+
+Documents how to build and install the simulator for use with picolibc
+testing.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ README.MSP430 | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+ create mode 100644 README.MSP430
+
+diff --git a/README.MSP430 b/README.MSP430
+new file mode 100644
+index 00000000000..3169cae7e9b
+--- /dev/null
++++ b/README.MSP430
+@@ -0,0 +1,9 @@
++To build this for use with picolibc testing:
++
++$ mkdir build
++$ cd build
++$ ../configure --target=msp430-unknown-elf --enable-sim --prefix=/opt/msp430
++$ make
++$ make install
++$ PATH=/opt/msp430/bin:$PATH
++
+-- 
+2.47.2
+
