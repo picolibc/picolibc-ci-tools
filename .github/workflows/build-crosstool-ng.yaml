@@ -21,7 +21,7 @@ permissions:
     contents: write
 
 env:
-  CT_NG_REF: 32f288e61fee8528931bcd55bf106cf0cfb4e2a1
+  CT_NG_REF: 70c2b00ad79a0a21a48e5a0eedc9f91c374af21d
   PLATFORM: "linux-amd64"
 
 jobs:
