@@ -1,0 +1,36 @@
+From e47ad7ad6eb7ce100e2e2737ecedd36b4a96b234 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 10 Apr 2025 17:10:17 -0700
+Subject: [PATCH] sanitizer: Store no_sanitize attribute value in uint32
+ instead of unsigned
+
+A target using 16-bit ints won't have enough bits to hold the whole
+flag_sanitize set. Be explicit about using uint32 for the attribute data.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/c-family/c-attribs.cc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/c-family/c-attribs.cc b/gcc/c-family/c-attribs.cc
+index 04e39b41bdf..5fb32795760 100644
+--- a/gcc/c-family/c-attribs.cc
++++ b/gcc/c-family/c-attribs.cc
+@@ -1348,12 +1348,12 @@ add_no_sanitize_value (tree node, unsigned int flags)
+       if (flags == old_value)
+ 	return;
+ 
+-      TREE_VALUE (attr) = build_int_cst (unsigned_type_node, flags);
++      TREE_VALUE (attr) = build_int_cst (uint32_type_node, flags);
+     }
+   else
+     DECL_ATTRIBUTES (node)
+       = tree_cons (get_identifier ("no_sanitize"),
+-		   build_int_cst (unsigned_type_node, flags),
++		   build_int_cst (uint32_type_node, flags),
+ 		   DECL_ATTRIBUTES (node));
+ }
+ 
+-- 
+2.49.0
+
