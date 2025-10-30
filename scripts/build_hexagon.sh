@@ -9,6 +9,8 @@ ARCH=hexagon
 INSTALL=${HERE}/clang-${ARCH}-toolchain
 BUILD=${HERE}/build-${ARCH}-toolchain
 PLATFORM=$(uname -sm | tr ' ' '-')
+MAX_SIZE=$((2 * 1024 * 1024 * 1024))  # 2 GB in bytes
+OUTPUT="${TOP}/$(basename ${INSTALL}).${PLATFORM}.tar.xz"
 
 case "$TOP" in
     /*)
@@ -77,4 +79,11 @@ cmake -G Ninja \
 echo "Build compiler-rt builtins"
 cmake --build ${HERE}/build-${ARCH}-builtins -- install-builtins  || exit 1
 echo "Pack toolchain install"
-tar -C $(dirname ${INSTALL}) -cJf ${TOP}/$(basename ${INSTALL}).${PLATFORM}.tar.xz $(basename ${INSTALL})
+tar -C $(dirname ${INSTALL}) -cJf "${OUTPUT}" $(basename ${INSTALL})
+ACTUAL_SIZE=$(stat -c %s "${OUTPUT}")
+echo "Size of ${OUTPUT}: ${ACTUAL_SIZE}. Limit: ${MAX_SIZE}."
+if [ "${ACTUAL_SIZE}" -gt "${MAX_SIZE}" ]; then
+    echo "${OUTPUT}: ${ACTUAL_SIZE} exceeds ${MAX_SIZE} limit"
+    exit 1
+fi
+exit 0
