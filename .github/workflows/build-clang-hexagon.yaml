@@ -1,0 +1,130 @@
+name: Build Clang toolchain for Hexagon
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# When a PR is updated, cancel the jobs from the previous version. Merges
+# do not define head_ref, so use run_id to never cancel those jobs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+    contents: write
+env:
+    PLATFORM: "linux-amd64"
+jobs:
+  build-toolchains:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - name: hexagon
+            triple: hexagon-unknown-none-elf
+            llvm-target: Hexagon
+
+    steps:
+      - name: Set up Clang 20
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: "20"
+          platform: x64
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libc++-dev libc++abi-dev ccache libclang-rt-20-dev cmake ninja-build make bison flex python3 m4 git libglib2.0-dev meson
+      - name: Checkout LLVM Project
+        run: |
+          git clone --branch main --single-branch --depth 1 https://github.com/llvm/llvm-project ${{ github.workspace }}/llvm-project
+
+      - name: Checkout ELD
+        run: |
+          git clone --branch main --single-branch --depth 1 https://github.com/qualcomm/eld ${{ github.workspace }}/llvm-project/llvm/tools/eld
+
+      - name: Configure LLVM toolchain for ${{ matrix.arch.name }}
+        run: |
+
+          cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ENABLE_PROJECTS="llvm;clang" \
+            -DLLVM_DEFAULT_TARGET_TRIPLE=${{ matrix.arch.triple }} \
+            -DCMAKE_C_COMPILER=`which clang` \
+            -DCMAKE_CXX_COMPILER=`which clang++` \
+            -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+            -DLLVM_TARGETS_TO_BUILD=${{ matrix.arch.llvm-target }} \
+            -DELD_TARGETS_TO_BUILD=${{ matrix.arch.llvm-target }} \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/clang-${{ matrix.arch.name }}-toolchain \
+            -S ${{ github.workspace }}/llvm-project/llvm \
+            -B ${{ github.workspace }}/build-${{ matrix.arch.name }}-toolchain/ \
+
+      - name: Build LLVM toolchain for ${{ matrix.arch.name }}
+        run: |
+          cmake --build ${{ github.workspace }}/build-${{ matrix.arch.name }}-toolchain/ -- install
+
+      - name: Build compiler-rt builtins
+        run: |
+          export TOOLCHAIN_INSTALL=${{ github.workspace }}/clang-${{ matrix.arch.name }}-toolchain/
+          export PATH=$TOOLCHAIN_INSTALL/bin:$PATH
+          if [ ${{ matrix.arch.name }} = "hexagon" ]; then
+            cmake -G Ninja \
+              -DCMAKE_C_COMPILER:STRING=`which clang` \
+              -DCMAKE_CXX_COMPILER:STRING=`which clang++` \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DLLVM_CMAKE_DIR:PATH=$TOOLCHAIN_INSTALL \
+              -DCMAKE_INSTALL_PREFIX:PATH=$($TOOLCHAIN_INSTALL/bin/clang -print-resource-dir) \
+              -DCMAKE_ASM_FLAGS="-G0 -mlong-calls -fno-pic" \
+              -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON \
+              -DLLVM_TARGET_TRIPLE=hexagon-unknown-none-elf \
+              -DCOMPILER_RT_DEFAULT_TARGET_TRIPLE=hexagon-unknown-none-elf \
+              -DCOMPILER_RT_BUILD_BUILTINS=ON \
+              -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+              -DCOMPILER_RT_BUILD_XRAY=OFF \
+              -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+              -DCOMPILER_RT_BUILD_PROFILE=OFF \
+              -DCOMPILER_RT_BUILD_MEMPROF=OFF \
+              -DCOMPILER_RT_BUILD_ORC=OFF \
+              -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
+              -DCOMPILER_RT_BUILTINS_ENABLE_PIC=OFF \
+              -DCOMPILER_RT_SUPPORTED_ARCH=hexagon \
+              -DCOMPILER_RT_BAREMETAL_BUILD=ON \
+              -DCMAKE_C_FLAGS="-ffreestanding" \
+              -DCMAKE_CXX_FLAGS="-ffreestanding" \
+              -DCMAKE_CROSSCOMPILING=ON \
+              -DCAN_TARGET_hexagon=1 \
+              -DCMAKE_C_COMPILER_FORCED=ON \
+              -DCMAKE_CXX_COMPILER_FORCED=ON \
+              -DCMAKE_C_COMPILER_TARGET=hexagon-unknown-none-elf \
+              -DCMAKE_CXX_COMPILER_TARGET=hexagon-unknown-none-elf \
+              -B build-${{ matrix.arch.name }}-builtins/ \
+              -S ${{ github.workspace }}/llvm-project/compiler-rt/
+          else
+            echo "FIXME : some generic cmake for other targets?"
+          fi
+          cmake --build ${{ github.workspace }}/build-${{ matrix.arch.name }}-builtins/ -- install-builtins
+
+      - name: Pack toolchain tarball
+        run: |
+          tar -C ${{ github.workspace }}/ \
+              -cvf clang-${{ matrix.arch.name }}-toolchain.${{ env.PLATFORM }}.tar.xz clang-${{ matrix.arch.name }}-toolchain
+
+      - name: Upload toolchain tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-${{ matrix.arch.name }}-toolchain.${{ env.PLATFORM }}.tar.xz
+          path: clang-${{ matrix.arch.name }}-toolchain.${{ env.PLATFORM }}.tar.xz
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: clang-${{ matrix.arch.name }}-toolchain.${{ env.PLATFORM }}.tar.xz
