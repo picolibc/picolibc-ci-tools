@@ -3,6 +3,8 @@
 TOP="$(dirname "$0")/.."
 HERE=`pwd`
 
+LLVM_REVISION=b8868c16f07de8e926d5e564444c49cae651c80d
+ELD_REVISION=5d04379a7e32afce6224ebffb2e999447afcab14
 TRIPLE=hexagon-unknown-none-elf
 TARGET=Hexagon
 ARCH=hexagon
@@ -23,11 +25,11 @@ esac
 PATH=$TOP/.local/bin:$PATH
 if [ ! -d llvm-project ]; then
     echo "Cloning LLVM"
-    git clone --branch main --single-branch --depth 1 https://github.com/llvm/llvm-project llvm-project || exit 1
+    git clone --revision $LLVM_REVISION --depth 1 https://github.com/llvm/llvm-project llvm-project || exit 1
 fi
 if [ ! -d llvm-project/llvm/tools/eld ]; then
     echo "Cloning tools/eld"
-    git clone --branch main --single-branch --depth 1 https://github.com/qualcomm/eld llvm-project/llvm/tools/eld || exit 1
+    git clone --revision $ELD_REVISION --depth 1 https://github.com/qualcomm/eld llvm-project/llvm/tools/eld || exit 1
 fi    
 echo "Configure LLVM"
 cmake -G Ninja \
