@@ -33,7 +33,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y clang libc++-dev libc++abi-dev libclang-rt-20-dev cmake ninja-build make bison flex python3 m4 libglib2.0-dev
+          sudo apt install -y clang libc++-dev libc++abi-dev libclang-rt-dev cmake ninja-build make bison flex python3 m4 libglib2.0-dev git xz-utils
 
       - name: Build toolchain
         run: |

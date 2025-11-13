@@ -32,6 +32,7 @@ if [ ! -d llvm-project/llvm/tools/eld ]; then
     git clone --revision $ELD_REVISION --depth 1 https://github.com/qualcomm/eld llvm-project/llvm/tools/eld || exit 1
 fi    
 echo "Configure LLVM"
+set -x
 cmake -G Ninja \
       -DCMAKE_BUILD_TYPE=Release \
       -DLLVM_ENABLE_PROJECTS="llvm;clang" \
@@ -42,44 +43,26 @@ cmake -G Ninja \
       -DLLVM_TARGETS_TO_BUILD=${TARGET} \
       -DELD_TARGETS_TO_BUILD=${TARGET} \
       -DCMAKE_INSTALL_PREFIX=${INSTALL} \
-      -S ${HERE}/llvm-project/llvm \
-      -B ${BUILD} || exit 1
-echo "Build and install LLVM"
-cmake --build ${HERE}/build-${ARCH}-toolchain -- install  || exit 1
-echo "Configure compiler-rt builtins"
-cmake -G Ninja \
-      -DCMAKE_C_COMPILER:STRING=${INSTALL}/bin/clang \
-      -DCMAKE_CXX_COMPILER:STRING=${INSTALL}/bin/clang++ \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DLLVM_CMAKE_DIR:PATH=${INSTALL} \
-      -DCMAKE_INSTALL_PREFIX:PATH=$(${INSTALL}/bin/clang -print-resource-dir) \
-      -DCMAKE_ASM_FLAGS="-G0 -mlong-calls -fno-pic" \
-      -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON \
-      -DLLVM_TARGET_TRIPLE=${TRIPLE} \
+      -DLLVM_ENABLE_RUNTIMES=compiler-rt \
       -DCOMPILER_RT_DEFAULT_TARGET_TRIPLE=${TRIPLE} \
       -DCOMPILER_RT_BUILD_BUILTINS=ON \
       -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
       -DCOMPILER_RT_BUILD_XRAY=OFF \
       -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
       -DCOMPILER_RT_BUILD_PROFILE=OFF \
+      -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF \
       -DCOMPILER_RT_BUILD_MEMPROF=OFF \
       -DCOMPILER_RT_BUILD_ORC=OFF \
       -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
       -DCOMPILER_RT_BUILTINS_ENABLE_PIC=OFF \
-      -DCOMPILER_RT_SUPPORTED_ARCH=${ARCH} \
       -DCOMPILER_RT_BAREMETAL_BUILD=ON \
-      -DCMAKE_C_FLAGS="-ffreestanding" \
-      -DCMAKE_CXX_FLAGS="-ffreestanding" \
-      -DCMAKE_CROSSCOMPILING=ON \
-      -DCAN_TARGET_hexagon=1 \
-      -DCMAKE_C_COMPILER_FORCED=ON \
-      -DCMAKE_CXX_COMPILER_FORCED=ON \
-      -DCMAKE_C_COMPILER_TARGET=${TRIPLE} \
-      -DCMAKE_CXX_COMPILER_TARGET=${TRIPLE} \
-      -B build-${ARCH}-builtins/ \
-      -S ${HERE}/llvm-project/compiler-rt/ || exit 1
-echo "Build compiler-rt builtins"
-cmake --build ${HERE}/build-${ARCH}-builtins -- install-builtins  || exit 1
+      -DCOMPILER_RT_BUILD_CRT=OFF \
+      -DBUILTINS_CMAKE_ARGS="-DCAN_TARGET_hexagon=ON;-DCMAKE_C_FLAGS=-ffreestanding;-DCMAKE_CXX_FLAGS=-ffreestanding" \
+      -S ${HERE}/llvm-project/llvm \
+      -B ${BUILD} || exit 1
+set +x
+echo "Build and install LLVM"
+cmake --build ${HERE}/build-${ARCH}-toolchain -- install  || exit 1
 echo "Pack toolchain install"
 tar -C $(dirname ${INSTALL}) -cJf "${OUTPUT}" $(basename ${INSTALL})
 ACTUAL_SIZE=$(stat -c %s "${OUTPUT}")
