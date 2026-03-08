@@ -1,0 +1,3 @@
+[submodule "arm-toolchain"]
+	path = arm-toolchain
+	url = https://github.com/picolibc/arm-toolchain
