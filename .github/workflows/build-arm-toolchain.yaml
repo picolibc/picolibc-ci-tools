@@ -1,0 +1,58 @@
+name: Build Arm toolchain
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# When a PR is updated, cancel the jobs from the previous version. Merges
+# do not define head_ref, so use run_id to never cancel those jobs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+    contents: write
+env:
+    PLATFORM: "Linux-x86_64"
+    VERSION: "23.0.0-pre"
+jobs:
+  build-arm-toolchain:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y clang libc++-dev libc++abi-dev libclang-rt-dev cmake meson ninja-build make bison flex python3 m4 libglib2.0-dev git xz-utils qemu-system-arm
+
+      - name: Build toolchain
+        run: |
+          mkdir -p build-arm-toolchain
+          cd build-arm-toolchain
+          ../scripts/build_arm_toolchain.sh
+
+      - name: Upload toolchain tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATfE-${{ env.VERSION }}-${{ env.PLATFORM }}.tar.xz
+          path: ATfE-${{ env.VERSION }}-${{ env.PLATFORM }}.tar.xz
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ATfE-${{ env.VERSION }}-${{ env.PLATFORM }}.tar.xz
