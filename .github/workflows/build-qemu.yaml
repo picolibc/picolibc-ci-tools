@@ -48,7 +48,7 @@ jobs:
           - variant: hexagon
             target-list: "hexagon-softmmu"
             repository: quic/qemu
-            ref: hex-next
+            ref: hexagon-sysemu-23-apr-2026
           - variant: riscv # 11.0.2
             target-list: "riscv32-softmmu,riscv64-softmmu"
             repository: qemu/qemu
