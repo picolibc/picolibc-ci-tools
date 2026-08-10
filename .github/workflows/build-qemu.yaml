@@ -46,8 +46,8 @@ jobs:
             repository: foss-for-synopsys-dwc-arc-processors/qemu
             ref: 76e0fa9053b4184a29c9077959d484047eefe521
           - variant: hexagon
-            target-list: "hexagon-softmmu"
-            repository: quic/qemu
+            target-list: "hexagon-linux-user,hexagon-softmmu"
+            repository: qualcomm/qemu
             ref: hexagon-sysemu-23-apr-2026
 
     steps:
