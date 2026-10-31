@@ -1,0 +1,64 @@
+name: Build Meson
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# When a PR is updated, cancel the jobs from the previous version. Merges
+# do not define head_ref, so use run_id to never cancel those jobs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+    contents: write
+
+jobs:
+  build-meson:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: stable
+            repository: picolibc/meson
+            ref: picolibc-ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          path: meson
+
+      - name: Build meson
+        run: |
+          mkdir -p ${{ github.workspace }}/meson-${{ matrix.variant }}/bin
+          python3 meson/packaging/create_zipapp.py --outfile ${{ github.workspace }}/meson-${{ matrix.variant }}/bin/meson meson
+          ${{ github.workspace }}/meson-${{ matrix.variant }}/bin/meson --version
+
+      - name: Pack meson tarball
+        run: |
+          tar -C ${{ github.workspace }} \
+              -cJvf meson-${{ matrix.variant }}.tar.xz meson-${{ matrix.variant }}
+
+      - name: Upload meson tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-${{ matrix.variant }}.tar.xz
+          path: meson-${{ matrix.variant }}.tar.xz
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: meson-${{ matrix.variant }}.tar.xz
