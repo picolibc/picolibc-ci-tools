@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 31 Oct 2026 09:28:24 -0700
+Subject: [PATCH 5/5] fpu: Normalize m68k unnormal operands
+
+m68k accepts unnormals (a non-zero exponent with the explicit integer
+bit clear) as valid operands, and floatx80_unpack_canonical lets them
+through when floatx80_unnormal_valid is set. parts_canonicalize then
+treated them like normal numbers and set the integer bit, so an
+unnormal such as 3fff:4000000000000000 (0.5) was used as 1.5.
+
+Normalize the fraction instead, adjusting the exponent, and treat an
+unnormal with a zero fraction as zero, as the 68881 does.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ fpu/softfloat-parts.c.inc | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/fpu/softfloat-parts.c.inc b/fpu/softfloat-parts.c.inc
+index deb712e..8fef33e 100644
+--- a/fpu/softfloat-parts.c.inc
++++ b/fpu/softfloat-parts.c.inc
+@@ -260,6 +260,22 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
+     p->cls = float_class_normal;
+     p->exp -= fmt->exp_bias;
+     fracN(shl)(p, fmt->frac_shift);
++    if (unlikely(fmt->has_explicit_bit &&
++                 !(p->frac_hi & DECOMPOSED_IMPLICIT_BIT))) {
++        /*
++         * An unnormal: the explicit integer bit is clear although the
++         * exponent is not zero. Only targets which accept unnormals
++         * as valid input (m68k) get here; the value is the fraction
++         * scaled by the exponent, so normalize it rather than
++         * assuming an integer bit.
++         */
++        if (fracN(eqz)(p)) {
++            p->cls = float_class_zero;
++        } else {
++            p->exp -= fracN(normalize)(p);
++        }
++        return;
++    }
+     p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
+ }
+ 

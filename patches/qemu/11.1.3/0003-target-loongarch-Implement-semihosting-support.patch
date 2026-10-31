@@ -1,0 +1,309 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jiaxun Yang <jiaxun.yang@flygoat.com>
+Date: Sat, 31 Oct 2026 09:58:11 -0700
+Subject: [PATCH 3/5] target/loongarch: Implement semihosting support
+
+Wire up ARM_COMPATIBLE_SEMIHOSTING for LoongArch.
+
+The semihosting ABI (i.e. "dbcl 0xab" for semihosting call and Arm
+compatible settings) is confirmed by LA132 (1C103)'s OpenOCD
+implementation.
+
+Signed-off-by: Jiaxun Yang <jiaxun.yang@flygoat.com>
+---
+ configs/targets/loongarch64-linux-user.mak    |  2 +
+ linux-user/loongarch64/cpu_loop.c             |  5 +++
+ linux-user/qemu.h                             |  2 +-
+ qemu-options.hx                               | 11 ++---
+ target/loongarch/Kconfig                      |  1 +
+ target/loongarch/common-semi-target.c         | 44 +++++++++++++++++++
+ target/loongarch/cpu.h                        |  3 ++
+ target/loongarch/meson.build                  |  2 +
+ .../tcg/insn_trans/trans_privileged.c.inc     | 41 +++++++++--------
+ target/loongarch/tcg/tcg_cpu.c                |  6 +++
+ target/loongarch/tcg/translate.c              |  1 +
+ 11 files changed, 93 insertions(+), 25 deletions(-)
+ create mode 100644 target/loongarch/common-semi-target.c
+
+diff --git a/configs/targets/loongarch64-linux-user.mak b/configs/targets/loongarch64-linux-user.mak
+index 63b0bfc..a9a8dd3 100644
+--- a/configs/targets/loongarch64-linux-user.mak
++++ b/configs/targets/loongarch64-linux-user.mak
+@@ -4,5 +4,7 @@ TARGET_BASE_ARCH=loongarch
+ TARGET_XML_FILES=loongarch-base64.xml loongarch-fpu.xml loongarch-lsx.xml loongarch-lasx.xml
+ TARGET_SYSTBL=syscall.tbl
+ TARGET_SYSTBL_ABI=common,64
++CONFIG_SEMIHOSTING=y
++CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
+ TARGET_LONG_BITS=64
+ TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API=y
+diff --git a/linux-user/loongarch64/cpu_loop.c b/linux-user/loongarch64/cpu_loop.c
+index 27d6eef..d03d090 100644
+--- a/linux-user/loongarch64/cpu_loop.c
++++ b/linux-user/loongarch64/cpu_loop.c
+@@ -10,6 +10,7 @@
+ #include "user-internals.h"
+ #include "user/cpu_loop.h"
+ #include "signal-common.h"
++#include "semihosting/common-semi.h"
+ 
+ /* Break codes */
+ enum {
+@@ -109,6 +110,10 @@ void cpu_loop(CPULoongArchState *env)
+         case EXCCODE_ASXD:
+             sys->CSR_EUEN |= R_CSR_EUEN_ASXE_MASK;
+             break;
++        case EXCCODE_SEMIHOST:
++            do_common_semihosting(cs);
++            set_pc(env, env->pc + 4);
++            break;
+ 
+         case EXCP_ATOMIC:
+             cpu_exec_step_atomic(cs);
+diff --git a/linux-user/qemu.h b/linux-user/qemu.h
+index ef7aed2..1af3cc5 100644
+--- a/linux-user/qemu.h
++++ b/linux-user/qemu.h
+@@ -108,7 +108,7 @@ struct TaskState {
+     FPA11 fpa;
+ # endif
+ #endif
+-#if defined(TARGET_ARM) || defined(TARGET_RISCV)
++#if defined(TARGET_ARM) || defined(TARGET_LOONGARCH) || defined(TARGET_RISCV)
+     int swi_errno;
+ #endif
+ #if defined(TARGET_I386) && !defined(TARGET_X86_64)
+diff --git a/qemu-options.hx b/qemu-options.hx
+index 34970ff..3f0ac3e 100644
+--- a/qemu-options.hx
++++ b/qemu-options.hx
+@@ -5507,10 +5507,11 @@ ERST
+ DEF("semihosting", 0, QEMU_OPTION_semihosting,
+     "-semihosting    semihosting mode\n",
+     QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
+-    QEMU_ARCH_MIPS | QEMU_ARCH_RISCV)
++    QEMU_ARCH_MIPS | QEMU_ARCH_RISCV | QEMU_ARCH_LOONGARCH)
+ SRST
+ ``-semihosting``
+-    Enable :ref:`Semihosting` mode (ARM, M68K, Xtensa, MIPS, RISC-V only).
++    Enable :ref:`Semihosting` mode (ARM, M68K, Xtensa, MIPS, RISC-V,
++    LoongArch only).
+ 
+     .. warning::
+       Note that this allows guest direct access to the host filesystem, so
+@@ -5523,11 +5524,11 @@ DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
+     "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]\n" \
+     "                semihosting configuration\n",
+ QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
+-QEMU_ARCH_MIPS | QEMU_ARCH_RISCV)
++QEMU_ARCH_MIPS | QEMU_ARCH_RISCV | QEMU_ARCH_LOONGARCH)
+ SRST
+ ``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]``
+-    Enable and configure :ref:`Semihosting` (ARM, M68K, Xtensa, MIPS, RISC-V
+-    only).
++    Enable and configure :ref:`Semihosting` (ARM, M68K, Xtensa, MIPS, RISC-V,
++    LoongArch only).
+ 
+     .. warning::
+       Note that this allows guest direct access to the host filesystem, so
+diff --git a/target/loongarch/Kconfig b/target/loongarch/Kconfig
+index 46b26b1..ba8918d 100644
+--- a/target/loongarch/Kconfig
++++ b/target/loongarch/Kconfig
+@@ -1,2 +1,3 @@
+ config LOONGARCH64
+     bool
++    select ARM_COMPATIBLE_SEMIHOSTING if TCG
+diff --git a/target/loongarch/common-semi-target.c b/target/loongarch/common-semi-target.c
+new file mode 100644
+index 0000000..cc1220b
+--- /dev/null
++++ b/target/loongarch/common-semi-target.c
+@@ -0,0 +1,44 @@
++/*
++ * Target-specific parts of semihosting/arm-compat-semi.c.
++ *
++ * Copyright (c) 2024 Jiaxun Yang <jiaxun.yang@flygoat.com>
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "cpu.h"
++#include "semihosting/common-semi.h"
++
++uint64_t common_semi_arg(CPUState *cs, int argno)
++{
++    CPULoongArchState *env = cpu_env(cs);
++    return env->gpr[4 + argno];
++}
++
++void common_semi_set_ret(CPUState *cs, uint64_t ret)
++{
++    CPULoongArchState *env = cpu_env(cs);
++    env->gpr[4] = ret;
++}
++
++bool is_64bit_semihosting(CPUArchState *env)
++{
++    return !is_va32(env);
++}
++
++bool common_semi_sys_exit_is_extended(CPUState *cs)
++{
++    return is_64bit_semihosting(cpu_env(cs));
++}
++
++uint64_t common_semi_stack_bottom(CPUState *cs)
++{
++    CPULoongArchState *env = cpu_env(cs);
++    return env->gpr[3];
++}
++
++bool common_semi_has_synccache(CPUArchState *env)
++{
++    return true;
++}
+diff --git a/target/loongarch/cpu.h b/target/loongarch/cpu.h
+index ad30c73..fc3f7ac 100644
+--- a/target/loongarch/cpu.h
++++ b/target/loongarch/cpu.h
+@@ -95,6 +95,9 @@ FIELD(FCSR0, CAUSE, 24, 5)
+ #define  EXCCODE_BTE                 EXCODE(21, 0)
+ #define  EXCCODE_DBP                 EXCODE(26, 0) /* Reserved subcode used for debug */
+ 
++/* QEMU Internal Exceptions */
++#define  EXCCODE_SEMIHOST            EXCODE(63, 0)
++
+ /* cpucfg[0] bits */
+ FIELD(CPUCFG0, PRID, 0, 12)
+ FIELD(CPUCFG0, SERID, 12, 4)
+diff --git a/target/loongarch/meson.build b/target/loongarch/meson.build
+index c5a2953..78555b6 100644
+--- a/target/loongarch/meson.build
++++ b/target/loongarch/meson.build
+@@ -4,6 +4,8 @@ loongarch_ss = ss.source_set()
+ loongarch_ss.add(files(
+   'cpu.c',
+ ))
++loongarch_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
++                 if_true: files('common-semi-target.c'))
+ 
+ loongarch_user_ss = ss.source_set()
+ loongarch_user_ss.add(files('gdbstub.c'))
+diff --git a/target/loongarch/tcg/insn_trans/trans_privileged.c.inc b/target/loongarch/tcg/insn_trans/trans_privileged.c.inc
+index 6728ce5..44fcf15 100644
+--- a/target/loongarch/tcg/insn_trans/trans_privileged.c.inc
++++ b/target/loongarch/tcg/insn_trans/trans_privileged.c.inc
+@@ -7,6 +7,28 @@
+ 
+ #include "csr.h"
+ 
++static bool check_plv(DisasContext *ctx)
++{
++    if (ctx->plv == MMU_PLV_USER) {
++        generate_exception(ctx, EXCCODE_IPE);
++        return true;
++    }
++    return false;
++}
++
++static bool trans_dbcl(DisasContext *ctx, arg_dbcl *a)
++{
++    if (semihosting_enabled(ctx->plv == MMU_PLV_USER) && a->imm == 0xab) {
++        generate_exception(ctx, EXCCODE_SEMIHOST);
++        return true;
++    }
++    if (check_plv(ctx)) {
++        return false;
++    }
++    generate_exception(ctx, EXCCODE_DBP);
++    return true;
++}
++
+ #ifdef CONFIG_USER_ONLY
+ 
+ #define GEN_FALSE_TRANS(name)   \
+@@ -37,7 +59,6 @@ GEN_FALSE_TRANS(cacop)
+ GEN_FALSE_TRANS(ldpte)
+ GEN_FALSE_TRANS(lddir)
+ GEN_FALSE_TRANS(ertn)
+-GEN_FALSE_TRANS(dbcl)
+ GEN_FALSE_TRANS(idle)
+ 
+ #else
+@@ -45,15 +66,6 @@ GEN_FALSE_TRANS(idle)
+ typedef void (*GenCSRRead)(TCGv dest, TCGv_ptr env);
+ typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src);
+ 
+-static bool check_plv(DisasContext *ctx)
+-{
+-    if (ctx->plv == MMU_PLV_USER) {
+-        generate_exception(ctx, EXCCODE_IPE);
+-        return true;
+-    }
+-    return false;
+-}
+-
+ static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
+                                GenCSRWrite writefn)
+ {
+@@ -401,15 +413,6 @@ static bool trans_ertn(DisasContext *ctx, arg_ertn *a)
+     return true;
+ }
+ 
+-static bool trans_dbcl(DisasContext *ctx, arg_dbcl *a)
+-{
+-    if (check_plv(ctx)) {
+-        return false;
+-    }
+-    generate_exception(ctx, EXCCODE_DBP);
+-    return true;
+-}
+-
+ static bool trans_idle(DisasContext *ctx, arg_idle *a)
+ {
+     if (check_plv(ctx)) {
+diff --git a/target/loongarch/tcg/tcg_cpu.c b/target/loongarch/tcg/tcg_cpu.c
+index 4b1d44a..98cdc6d 100644
+--- a/target/loongarch/tcg/tcg_cpu.c
++++ b/target/loongarch/tcg/tcg_cpu.c
+@@ -17,6 +17,7 @@
+ #include "tcg/debug-assert.h"
+ #include "tcg_loongarch.h"
+ #include "internals.h"
++#include "semihosting/common-semi.h"
+ 
+ struct TypeExcp {
+     int32_t exccode;
+@@ -44,6 +45,7 @@ static const struct TypeExcp excp_names[] = {
+     {EXCCODE_BCE, "Bound Check Exception"},
+     {EXCCODE_SXD, "128 bit vector instructions Disable exception"},
+     {EXCCODE_ASXD, "256 bit vector instructions Disable exception"},
++    {EXCCODE_SEMIHOST, "Semihosting"},
+     {EXCP_HLT, "EXCP_HLT"},
+ };
+ 
+@@ -95,6 +97,10 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
+     }
+ 
+     switch (cs->exception_index) {
++    case EXCCODE_SEMIHOST:
++        do_common_semihosting(cs);
++        set_pc(env, env->pc + 4);
++        return;
+     case EXCCODE_DBP:
+         sys->CSR_DBG = FIELD_DP64(sys->CSR_DBG, CSR_DBG, DCL, 1);
+         sys->CSR_DBG = FIELD_DP64(sys->CSR_DBG, CSR_DBG, ECODE, 0xC);
+diff --git a/target/loongarch/tcg/translate.c b/target/loongarch/tcg/translate.c
+index 124dce6..7232c5a 100644
+--- a/target/loongarch/tcg/translate.c
++++ b/target/loongarch/tcg/translate.c
+@@ -17,6 +17,7 @@
+ #include "exec/log.h"
+ #include "qemu/qemu-print.h"
+ #include "fpu/softfloat.h"
++#include "semihosting/semihost.h"
+ #include "tcg_loongarch.h"
+ #include "translate.h"
+ #include "internals.h"

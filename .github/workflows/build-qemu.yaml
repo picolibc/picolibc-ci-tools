@@ -33,8 +33,8 @@ jobs:
           - variant: stable
             target-list: "loongarch64-softmmu,m68k-softmmu,mips-softmmu,mipsel-softmmu,mips64-softmmu,mips64el-softmmu,rx-softmmu"
             repository: qemu/qemu
-            ref: v9.2.0
-            patchdir: patches/qemu/9.2.0
+            ref: v11.1.3
+            patchdir: patches/qemu/11.1.3
             extra-args: "--enable-relocatable"
           - variant: "9.0" # For NIOS2, dropped in 9.1
             target-list: "nios2-softmmu"
