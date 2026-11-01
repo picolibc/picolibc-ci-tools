@@ -33,7 +33,7 @@ jobs:
         include:
           - variant: stable
             repository: picolibc/meson
-            ref: picolibc-ci
+            ref: 1.12.1-picolibc.1
 
     steps:
       - uses: actions/checkout@v4
