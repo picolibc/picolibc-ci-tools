@@ -46,11 +46,8 @@ jobs:
             target-list: "nios2-softmmu"
             repository: qemu/qemu
             ref: v9.0.4
-            extra-args: "--enable-relocatable"
-          - variant: arc
-            target-list: "arc-softmmu,arc64-softmmu"
-            repository: foss-for-synopsys-dwc-arc-processors/qemu
-            ref: 76e0fa9053b4184a29c9077959d484047eefe521
+            # The bundled dtc forces -Werror, which GCC 15 trips over
+            extra-args: "--enable-relocatable --extra-cflags=-Wno-error=discarded-qualifiers"
           - variant: hexagon
             target-list: "hexagon-linux-user,hexagon-softmmu"
             repository: qualcomm/qemu
