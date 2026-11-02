@@ -54,6 +54,7 @@ jobs:
           - toolchain: rx-zephyr-elf
           - toolchain: or1k-unknown-elf
           - toolchain: msp430-unknown-elf
+          - toolchain: nios2-zephyr-elf
           - toolchain: sh-unknown-elf
 
     steps:
