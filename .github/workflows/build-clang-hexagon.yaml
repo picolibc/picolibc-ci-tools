@@ -29,7 +29,7 @@ env:
     PLATFORM: "Linux-x86_64"
 jobs:
   build-toolchains:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
 
