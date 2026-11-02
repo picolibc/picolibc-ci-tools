@@ -98,7 +98,7 @@ jobs:
       - name: Pack toolchain tarball
         run: |
           tar -C ${{ github.workspace }}/x-tools \
-              -cvf ${{ matrix.toolchain }}.${{ env.PLATFORM }}.tar.xz ${{ matrix.toolchain }}
+              -cJvf ${{ matrix.toolchain }}.${{ env.PLATFORM }}.tar.xz ${{ matrix.toolchain }}
 
       - name: Upload toolchain tarball
         uses: actions/upload-artifact@v4
