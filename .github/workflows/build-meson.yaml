@@ -48,6 +48,7 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/meson-${{ matrix.variant }}/bin
           python3 meson/packaging/create_zipapp.py --outfile ${{ github.workspace }}/meson-${{ matrix.variant }}/bin/meson meson
+          chmod 755 ${{ github.workspace }}/meson-${{ matrix.variant }}/bin/meson
           ${{ github.workspace }}/meson-${{ matrix.variant }}/bin/meson --version
 
       - name: Pack meson tarball
