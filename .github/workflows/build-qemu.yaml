@@ -37,7 +37,7 @@ jobs:
       matrix:
         include:
           - variant: stable
-            target-list: "loongarch64-softmmu,m68k-softmmu,mips-softmmu,mipsel-softmmu,mips64-softmmu,mips64el-softmmu,rx-softmmu"
+            target-list: "loongarch64-softmmu,m68k-softmmu"
             repository: qemu/qemu
             ref: v11.1.3
             patchdir: patches/qemu/11.1.3
@@ -58,7 +58,7 @@ jobs:
 
       - name: "prereq Linux"
         run: |
-          sudo apt update && sudo apt install -y ninja-build python3-sphinx python3-sphinx-rtd-theme libglib2.0-dev libpixman-1-dev
+          sudo apt update && sudo apt install -y ninja-build libglib2.0-dev
 
       - uses: actions/checkout@v4
         with:
@@ -77,13 +77,13 @@ jobs:
           mkdir -p ${{ github.workspace }}/qemu-${{ matrix.variant }}
           mkdir build
           cd build
-          ../qemu/configure --target-list=${{ matrix.target-list }} --without-default-features --enable-tcg --enable-system --static --disable-werror --prefix=${{ github.workspace }}/qemu-${{ matrix.variant }} ${{ matrix.extra-args }}
+          ../qemu/configure --target-list=${{ matrix.target-list }} --without-default-features --enable-tcg --enable-system --static --disable-werror --disable-install-blobs --prefix=${{ github.workspace }}/qemu-${{ matrix.variant }} ${{ matrix.extra-args }}
           make install -j$(nproc)
 
       - name: Pack toolchain tarball
         run: |
           tar -C ${{ github.workspace }} \
-              -cvf qemu-${{ matrix.variant }}.${{ env.PLATFORM }}.tar.xz qemu-${{ matrix.variant }}
+              -cJvf qemu-${{ matrix.variant }}.${{ env.PLATFORM }}.tar.xz qemu-${{ matrix.variant }}
 
       - name: Upload toolchain tarball
         uses: actions/upload-artifact@v4
