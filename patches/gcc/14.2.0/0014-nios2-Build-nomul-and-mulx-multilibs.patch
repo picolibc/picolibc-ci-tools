@@ -1,0 +1,33 @@
+From 8fb6e40446ef71d2ce307ff5bbb7511957a4cae8 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Mon, 2 Nov 2026 09:32:44 -0800
+Subject: [PATCH] nios2: Build nomul and mulx multilibs
+
+The nios2 MULTILIB_OPTIONS are commented out, so only the default
+library is built. Enable the -mno-hw-mul and -mhw-mulx variants, as the
+Zephyr SDK did, so that picolibc's nios2 configuration, which builds
+for ".", "nomul" and "mulx", finds all three.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config/nios2/t-nios2 | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/gcc/config/nios2/t-nios2 b/gcc/config/nios2/t-nios2
+index 6c76c57..0b53add 100644
+--- a/gcc/config/nios2/t-nios2
++++ b/gcc/config/nios2/t-nios2
+@@ -22,6 +22,10 @@
+ # MULTILIB_DIRNAMES = nomul mulx fpu-60-1 fpu-60-2
+ # MULTILIB_EXCEPTIONS = 
+ 
++# Build the hardware multiply variants that picolibc and Zephyr use
++MULTILIB_OPTIONS = mno-hw-mul/mhw-mulx
++MULTILIB_DIRNAMES = nomul mulx
++
+ # MULTILIB_OPTIONS += EL/EB
+ # MULTILIB_DIRNAMES += le be
+ # MULTILIB_MATCHES += EL=mel EB=meb
+-- 
+2.47.3
+
