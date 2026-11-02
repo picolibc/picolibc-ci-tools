@@ -1,0 +1,5 @@
+CT_ARCH_NIOS2=y
+CT_LIBC_NONE=y
+CT_TARGET_VENDOR="zephyr"
+CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY="--enable-obsolete"
+CT_CC_GCC_EXTRA_CONFIG_ARRAY="--enable-obsolete"
