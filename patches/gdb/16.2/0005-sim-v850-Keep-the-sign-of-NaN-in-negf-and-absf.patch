@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 6 Nov 2026 00:57:22 +0530
+Subject: [PATCH 5/5] sim: v850: Keep the sign of NaN in negf and absf
+
+On RH850, negf and absf of a NaN only change the sign bit. The
+simulator returned the default NaN, so -NaN lost its sign.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ sim/v850/v850.igen | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/sim/v850/v850.igen b/sim/v850/v850.igen
+index e1cfc67..70a9e2e 100644
+--- a/sim/v850/v850.igen
++++ b/sim/v850/v850.igen
+@@ -2378,7 +2378,13 @@ rrrr,011111100000 + wwww,010001011000:F_I:::absf_d
+   status = sim_fpu_abs (&ans, &wop);
+   check_invalid_snan (SD, status, 1);
+ 
+-  sim_fpu_to232 (&GR[reg3e+1], &GR[reg3e], &ans);
++  if (sim_fpu_is_nan (&wop))
++    {
++      GR[reg3e+1] = GR[reg2e+1] & ~0x80000000;
++      GR[reg3e] = GR[reg2e];
++    }
++  else
++    sim_fpu_to232 (&GR[reg3e+1], &GR[reg3e], &ans);
+ 
+   TRACE_FP_RESULT_FPU1 (&ans);
+ }
+@@ -2398,7 +2404,10 @@ rrrrr,11111100000 + wwwww,10001001000:F_I:::absf_s
+   status = sim_fpu_abs (&ans, &wop);
+   check_invalid_snan (SD, status, 0);
+ 
+-  sim_fpu_to32 (&GR[reg3], &ans);
++  if (sim_fpu_is_nan (&wop))
++    GR[reg3] = GR[reg2] & ~0x80000000;
++  else
++    sim_fpu_to32 (&GR[reg3], &ans);
+   TRACE_FP_RESULT_FPU1 (&ans);
+ }
+ 
+@@ -3119,7 +3128,13 @@ rrrr,011111100001 + wwww,010001011000:F_I:::negf_d
+ 
+   check_invalid_snan (SD, status, 1);
+ 
+-  sim_fpu_to232 (&GR[reg3e+1], &GR[reg3e], &ans);
++  if (sim_fpu_is_nan (&wop))
++    {
++      GR[reg3e+1] = GR[reg2e+1] ^ 0x80000000;
++      GR[reg3e] = GR[reg2e];
++    }
++  else
++    sim_fpu_to232 (&GR[reg3e+1], &GR[reg3e], &ans);
+   TRACE_FP_RESULT_FPU1 (&ans);
+ }
+ 
+@@ -3139,7 +3154,10 @@ rrrrr,11111100001 + wwwww,10001001000:F_I:::negf_s
+ 
+   check_invalid_snan (SD, status, 0);
+ 
+-  sim_fpu_to32 (&GR[reg3], &ans);
++  if (sim_fpu_is_nan (&wop))
++    GR[reg3] = GR[reg2] ^ 0x80000000;
++  else
++    sim_fpu_to32 (&GR[reg3], &ans);
+   TRACE_FP_RESULT_FPU1 (&ans);
+ }
+ 
+-- 
+Parthiban N
+

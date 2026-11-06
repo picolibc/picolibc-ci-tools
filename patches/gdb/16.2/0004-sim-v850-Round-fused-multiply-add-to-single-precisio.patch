@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 6 Nov 2026 00:57:22 +0530
+Subject: [PATCH 4/5] sim: v850: Round fused multiply-add to single precision
+
+fmaf.s, fmsf.s, fnmaf.s and fnmsf.s rounded to double precision, and
+fmsf.s and fnmsf.s also rounded the product, before storing a single
+precision result. The second rounding gives wrong subnormal results.
+Round the exact result once, to single precision.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ sim/v850/v850.igen | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/sim/v850/v850.igen b/sim/v850/v850.igen
+index ef0f559..e1cfc67 100644
+--- a/sim/v850/v850.igen
++++ b/sim/v850/v850.igen
+@@ -2850,7 +2850,7 @@ rrrrr,111111,RRRRR + wwwww,10011100000:F_I:::fmaf_s
+   status = sim_fpu_mul (&ans, &wop1, &wop2);
+   wop1 = ans;
+   status |= sim_fpu_add (&ans, &wop1, &wop3);
+-  status |= sim_fpu_round_64 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
++  status |= sim_fpu_round_32 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
+ 
+   update_fpsr (SD, status, FPSR_XEV | FPSR_XEI | FPSR_XEO | FPSR_XEU, 0);
+ 
+@@ -3049,10 +3049,9 @@ rrrrr,111111,RRRRR + wwwww,10011100010:F_I:::fmsf_s
+   TRACE_FP_INPUT_FPU3 (&wop1, &wop2, &wop3);
+ 
+   status = sim_fpu_mul (&ans, &wop1, &wop2);
+-  status |= sim_fpu_round_64 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
+   wop1 = ans;
+   status |= sim_fpu_sub (&ans, &wop1, &wop3);
+-  status |= sim_fpu_round_64 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
++  status |= sim_fpu_round_32 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
+ 
+   update_fpsr (SD, status, FPSR_XEV | FPSR_XEI | FPSR_XEO | FPSR_XEU, 0);
+ 
+@@ -3186,7 +3185,7 @@ rrrrr,111111,RRRRR + wwwww,10011100100:F_I:::fnmaf_s
+   status = sim_fpu_mul (&ans, &wop1, &wop2);
+   wop1 = ans;
+   status |= sim_fpu_add (&ans, &wop1, &wop3);
+-  status |= sim_fpu_round_64 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
++  status |= sim_fpu_round_32 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
+   wop1 = ans;
+   status |= sim_fpu_neg (&ans, &wop1);
+ 
+@@ -3237,10 +3236,9 @@ rrrrr,111111,RRRRR + wwwww,10011100110:F_I:::fnmsf_s
+   TRACE_FP_INPUT_FPU3 (&wop1, &wop2, &wop3);
+ 
+   status = sim_fpu_mul (&ans, &wop1, &wop2);
+-  status |= sim_fpu_round_64 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
+   wop1 = ans;
+   status |= sim_fpu_sub (&ans, &wop1, &wop3);
+-  status |= sim_fpu_round_64 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
++  status |= sim_fpu_round_32 (&ans, FPSR_GET_ROUND(), sim_fpu_denorm_underflow_inexact);
+   wop1 = ans;
+   status |= sim_fpu_neg (&ans, &wop1);
+ 
+-- 
+Parthiban N
+
