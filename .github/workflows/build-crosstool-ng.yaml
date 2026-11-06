@@ -55,6 +55,7 @@ jobs:
           - toolchain: or1k-unknown-elf
           - toolchain: msp430-unknown-elf
           - toolchain: sh-unknown-elf
+          - toolchain: v850-unknown-elf
 
     steps:
       - uses: actions/checkout@v4
