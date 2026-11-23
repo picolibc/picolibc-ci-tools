@@ -1,0 +1,51 @@
+name: Build compiler-rt builtins for LoongArch64
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+    paths:
+      - '.github/workflows/build-compiler-rt-loongarch64.yaml'
+      - 'scripts/build_loongarch64-compiler-rt.sh'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-compiler-rt-loongarch64.yaml'
+      - 'scripts/build_loongarch64-compiler-rt.sh'
+  workflow_dispatch:
+
+# When a PR is updated, cancel the jobs from the previous version. Merges
+# do not define head_ref, so use run_id to never cancel those jobs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  PLATFORM: "Linux-x86_64"
+
+jobs:
+  build-builtins:
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y clang-22 llvm-22-dev lld-22 cmake ninja-build python3 curl xz-utils
+
+      - name: Build compiler-rt builtins
+        run: |
+          mkdir -p build-loongarch64
+          cd build-loongarch64
+          ../scripts/build_loongarch64-compiler-rt.sh
+
